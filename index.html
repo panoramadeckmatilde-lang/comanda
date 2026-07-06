@@ -502,26 +502,25 @@
 </head>
 <body>
 
-<!-- ══ TELA DE PIN — bloqueia o app até o código correto ser digitado ══ -->
-<div id="telaPin" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
+<!-- OVERLAY DE PIN: fica por cima de tudo, removido quando PIN correto -->
+<div id="pinOverlay" style="position:fixed;inset:0;background:#0d0d1a;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
   <div style="text-align:center;">
-    <div style="font-size:2.5rem; margin-bottom:6px;">🍺</div>
-    <div style="font-size:1.4rem; font-weight:700; color:var(--accent);">Comandas</div>
-    <div style="font-size:0.85rem; color:var(--muted); margin-top:4px;">Panorama Deck — Matilde</div>
+    <div style="font-size:2.8rem;margin-bottom:8px;">🍺</div>
+    <div style="font-size:1.5rem;font-weight:700;color:#f5a623;">Comandas</div>
+    <div style="font-size:0.85rem;color:#888;margin-top:4px;">Panorama Deck — Matilde</div>
   </div>
-  <div style="background:var(--card); border-radius:16px; padding:28px 32px; width:280px; box-shadow:0 4px 24px rgba(0,0,0,0.4);">
-    <div style="text-align:center; margin-bottom:16px; color:var(--muted); font-size:0.82rem; letter-spacing:.08em;">CÓDIGO DE ACESSO</div>
-    <input type="password" id="pinInput" maxlength="8" inputmode="numeric" pattern="[0-9]*"
-      style="width:100%; text-align:center; font-size:2rem; letter-spacing:0.5em; background:var(--bg); border:2px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-family:inherit; outline:none; box-sizing:border-box;"
-      placeholder="••••" autocomplete="off">
-    <div id="pinErro" style="color:var(--red); text-align:center; font-size:0.8rem; margin-top:8px; display:none;">Código incorreto. Tente novamente.</div>
-    <button id="pinBtnEntrar" style="width:100%; margin-top:16px; background:var(--accent); color:white; border:none; border-radius:10px; padding:14px; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit;">Entrar</button>
+  <div style="background:#1a1a2e;border-radius:16px;padding:28px 32px;width:260px;border:1px solid #333;">
+    <div style="text-align:center;margin-bottom:14px;color:#888;font-size:0.8rem;letter-spacing:.1em;">CÓDIGO DE ACESSO</div>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="8" placeholder="••••"
+      style="width:100%;box-sizing:border-box;text-align:center;font-size:2rem;letter-spacing:0.5em;background:#0d0d1a;border:2px solid #333;border-radius:10px;color:white;padding:12px;outline:none;font-family:inherit;">
+    <div id="pinErro" style="color:#e74c3c;text-align:center;font-size:0.8rem;margin-top:8px;display:none;">Código incorreto.</div>
+    <button id="pinBtn" onclick="tentarEntrarPIN()"
+      style="width:100%;margin-top:14px;background:#f5a623;color:#000;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Entrar</button>
   </div>
-  <div style="font-size:0.72rem; color:var(--muted);">Apenas colaboradores autorizados</div>
 </div>
 
-<!-- ══ INDICADOR DE SINCRONIA JSONBin ══ -->
-<div id="syncIndicador" style="position:fixed; bottom:54px; right:8px; font-size:0.65rem; color:var(--muted); z-index:500; display:none; background:var(--card); padding:3px 7px; border-radius:6px; pointer-events:none;"></div>
+<!-- Indicador de sync JSONBin -->
+<div id="syncBadge" style="position:fixed;bottom:50px;right:8px;font-size:0.65rem;background:rgba(0,0,0,0.6);color:#aaa;padding:3px 8px;border-radius:6px;z-index:9000;display:none;pointer-events:none;"></div>
 
 <div id="avisoFalhaSalvamento" class="aviso-falha-save" style="display:none;">
   ⚠️ <b>Atenção: os dados não estão sendo salvos!</b> O navegador recusou salvar (provavelmente sem espaço). Exporte um backup agora em Relatórios e libere espaço.
@@ -644,6 +643,33 @@
   </div>
 
   <p class="sec-title" style="margin-top:22px;">⚙️ Configurações</p>
+
+  <!-- ACESSO E SINCRONIZAÇÃO — sempre visível, sem acordeão -->
+  <div style="background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:14px;border:1px solid var(--border);">
+    <p class="sec-title" style="font-size:0.78rem;margin:0 0 12px;">🔐 Senhas e acesso</p>
+
+    <div class="fld">
+      <label>PIN de entrada (quem pode abrir o app)</label>
+      <input type="password" id="cfgPinEntrada" inputmode="numeric" maxlength="8" placeholder="PIN atual não exibido" autocomplete="off">
+      <p class="fld-hint" style="margin-top:4px;">Deixe em branco para não alterar. O PIN atual é o código de 4+ dígitos que você definiu.</p>
+    </div>
+
+    <div class="fld">
+      <label>Senha de gerência (para descontos e configurações)</label>
+      <input type="password" id="cfgSenhaGerencia" inputmode="numeric" maxlength="20" placeholder="Senha atual não exibida" autocomplete="off">
+      <p class="fld-hint" style="margin-top:4px;">Deixe em branco para não alterar.</p>
+    </div>
+
+    <p class="sec-title" style="font-size:0.78rem;margin:14px 0 8px;">🔄 Sincronização entre dispositivos</p>
+    <div class="fld">
+      <label>Intervalo de atualização: <span id="syncIntervalValor">5</span> segundos</label>
+      <input type="range" id="syncIntervalSlider" min="1" max="15" step="1" value="5">
+      <p class="fld-hint" style="margin-top:4px;">Com 5s, mudanças aparecem nos outros dispositivos em até 5 segundos. Valores menores = mais rápido, mais dados móveis.</p>
+    </div>
+
+    <button class="btn-blue" id="btnSalvarAcesso" style="width:100%;margin-top:4px;">Salvar alterações ✓</button>
+  </div>
+
   <div class="rel-accordion">
     <div class="rel-acc-item">
       <button class="rel-acc-btn" data-acc="backup">📦 Exportar pacote completo <span class="rel-acc-arrow">▾</span></button>
@@ -1764,159 +1790,143 @@ function load() {
     return mkState();
   }
 }
-// ══ CONFIGURAÇÃO JSONBin ════════════════════════════════════════════════════
-var JSONBIN_KEY = '$2a$10$ysN1XU8K3IZKb8Z0kO9GvOLvlshWws4USko8ahvEo3lk1ql9qPBEa';
-var JSONBIN_BIN = '6a4ae378f5f4af5e2964027f';
-var JSONBIN_URL = 'https://api.jsonbin.io/v3/b/' + JSONBIN_BIN;
-var PIN_ACESSO  = '7657'; // PIN de entrada — atendentes
+// ══ JSONBin + PIN ═══════════════════════════════════════════════════════════
+var _JKEY = '$2a$10$ysN1XU8K3IZKb8Z0kO9GvOLvlshWws4USko8ahvEo3lk1ql9qPBEa';
+var _JURL = 'https://api.jsonbin.io/v3/b/6a4ae378f5f4af5e2964027f';
+var _PIN  = '7657';
+var _autenticado = false;
+var _syncTimer = null;
+var _salvando  = false;
+var _tsLocal   = 0; // timestamp do ultimo save nosso
 
-// controle de sincronia
-var _syncTimeout   = null;
-var _ultimaVersao  = null; // ETag/versão do último load, para detectar mudanças externas
-var _salvandoCloud = false;
-var _appDesbloqueado = false;
-
-// ── Indicador visual de sincronia ──
-function syncStatus(msg, cor){
-  var el = document.getElementById('syncIndicador');
+function _badge(msg, cor){
+  var el = document.getElementById('syncBadge');
   if(!el) return;
-  el.style.display = 'block';
-  el.style.color = cor||'var(--muted)';
+  el.style.display = msg ? 'block' : 'none';
+  el.style.color = cor||'#aaa';
   el.textContent = msg;
 }
 
-// ── Save na nuvem (JSONBin) — debounced 1.5s para não disparar em cada tecla ──
-function saveCloud(){
-  if(!_appDesbloqueado) return;
-  if(_syncTimeout) clearTimeout(_syncTimeout);
-  _syncTimeout = setTimeout(function(){
-    if(_salvandoCloud) return;
-    _salvandoCloud = true;
-    syncStatus('☁️ salvando...','var(--accent2)');
-    fetch(JSONBIN_URL, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Versioning': 'false'
-      },
-      body: JSON.stringify(S)
+// sobe dados para JSONBin (debounced 2s)
+function _saveCloud(){
+  if(!_autenticado) return;
+  if(_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(function(){
+    if(_salvando) return;
+    _salvando = true;
+    _badge('☁️ salvando...','#f5a623');
+    _tsLocal = Date.now();
+    var payload = JSON.parse(JSON.stringify(S));
+    payload.__ts = _tsLocal;
+    fetch(_JURL, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':_JKEY,'X-Bin-Versioning':'false'},
+      body: JSON.stringify(payload)
     })
-    .then(function(r){ return r.json(); })
-    .then(function(){
-      syncStatus('✓ salvo','var(--green)');
-      setTimeout(function(){ syncStatus('',''); document.getElementById('syncIndicador').style.display='none'; }, 2500);
-    })
-    .catch(function(){
-      syncStatus('⚠️ erro ao salvar','var(--red)');
-    })
-    .finally(function(){ _salvandoCloud = false; });
-  }, 1500);
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(){ _badge('✓ salvo','#2ecc71'); setTimeout(function(){ _badge('',''); },2000); })
+    .catch(function(){ _badge('⚠️ sem sync','#e74c3c'); })
+    .finally(function(){ _salvando=false; });
+  }, 2000);
 }
 
-// ── Load da nuvem (JSONBin) ──
-async function loadCloud(){
+// busca dados da nuvem e aplica se forem mais novos
+async function _loadCloud(){
   try{
-    syncStatus('⟳ sincronizando...','var(--muted)');
-    var r = await fetch(JSONBIN_URL, {
-      headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+    _badge('⟳ sincronizando...','#aaa');
+    var r = await fetch(_JURL+'/latest', {
+      headers:{'X-Master-Key':_JKEY,'X-Bin-Meta':'false'}
     });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    var dados = await r.json();
-    // se o bin estava vazio/init, ignora e usa o estado local
-    if(dados && !dados.init && dados.mesaIds !== undefined){
-      // aplica as migrações no dado recebido da nuvem
-      var migrado = aplicarMigracoes(dados);
-      S = migrado;
-      localStorage.setItem('cmd8', JSON.stringify(S));
+    if(!r.ok) throw new Error(r.status);
+    var d = await r.json();
+    // dado válido = tem mesaIds e não é o placeholder inicial
+    if(d && d.mesaIds !== undefined && !d.init){
+      var tsRemoto = d.__ts || 0;
+      if(tsRemoto > _tsLocal){
+        // nuvem é mais nova — aplica
+        delete d.__ts;
+        S = d;
+        localStorage.setItem('cmd8', JSON.stringify(S));
+        _tsLocal = tsRemoto;
+        renderGrid();
+        _badge('✓ sincronizado','#2ecc71');
+      } else {
+        _badge('✓ ok','#2ecc71');
+      }
+    } else {
+      // bin vazio ou com init — sobe o estado local
+      _badge('☁️ enviando...','#f5a623');
+      await fetch(_JURL, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-Master-Key':_JKEY,'X-Bin-Versioning':'false'},
+        body: JSON.stringify(Object.assign({},S,{__ts:Date.now()}))
+      });
+      _badge('✓ enviado','#2ecc71');
     }
-    syncStatus('✓ sincronizado','var(--green)');
-    setTimeout(function(){ document.getElementById('syncIndicador').style.display='none'; }, 2000);
-    return true;
+    setTimeout(function(){ _badge('',''); }, 2500);
   } catch(e){
-    syncStatus('⚠️ offline — dados locais','var(--accent2)');
-    return false;
+    _badge('📴 offline','#f5a623');
+    setTimeout(function(){ _badge('',''); }, 3000);
   }
 }
 
-// ── Polling: verifica a cada 20s se outro dispositivo salvou algo novo ──
-function iniciarPolling(){
+// polling a cada 15s — só busca se não estamos salvando
+function _iniciarPolling(){
+  // intervalo configurável — padrão 10s, mínimo 5s, máximo 60s
+  var intervaloMs = Math.max(1, Math.min(15, (S.estabelecimento && S.estabelecimento.syncIntervalSeg)||5)) * 1000;
   setInterval(async function(){
-    if(!_appDesbloqueado || _salvandoCloud) return;
+    if(!_autenticado || _salvando) return;
     try{
-      var r = await fetch(JSONBIN_URL, {
-        headers:{ 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+      var r = await fetch(_JURL+'/latest', {
+        headers:{'X-Master-Key':_JKEY,'X-Bin-Meta':'false'}
       });
       if(!r.ok) return;
-      var dados = await r.json();
-      if(dados && !dados.init && dados.mesaIds !== undefined){
-        // compara com estado atual para ver se houve mudança
-        var remoto = JSON.stringify(dados);
-        var local  = JSON.stringify(S);
-        if(remoto !== local){
-          S = aplicarMigracoes(dados);
-          localStorage.setItem('cmd8', JSON.stringify(S));
-          renderGrid();
-          renderRelatorios();
-          toast('🔄 Dados atualizados de outro dispositivo');
-        }
+      var d = await r.json();
+      var ts = d && d.__ts || 0;
+      if(ts > _tsLocal && d.mesaIds !== undefined){
+        _tsLocal = ts;
+        delete d.__ts;
+        S = d;
+        localStorage.setItem('cmd8', JSON.stringify(S));
+        renderGrid();
+        toast('🔄 Atualizado de outro dispositivo');
       }
-    } catch(e){ /* sem internet — silencioso */ }
-  }, 20000);
+    } catch(e){ /* offline silencioso */ }
+  }, intervaloMs);
 }
 
-// ── Tela de PIN ──
-function mostrarTelaPin(){
-  var tela = document.getElementById('telaPin');
-  if(tela){ tela.style.display='flex'; }
-  setTimeout(function(){ var p=document.getElementById('pinInput'); if(p) p.focus(); }, 100);
-}
-function esconderTelaPin(){
-  var tela = document.getElementById('telaPin');
-  if(tela){ tela.style.display='none'; }
-}
-async function tentarEntrar(){
-  var pin = (document.getElementById('pinInput').value||'').trim();
-  var erro = document.getElementById('pinErro');
-  if(pin !== PIN_ACESSO){
-    erro.style.display='block';
+// PIN
+function tentarEntrarPIN(){
+  var val = (document.getElementById('pinInput').value||'').trim();
+  var err = document.getElementById('pinErro');
+  // usa o PIN salvo nas configurações se existir, senão usa o padrão
+  var pinCorreto = (S.estabelecimento && S.estabelecimento.pinEntrada) || _PIN;
+  if(val !== pinCorreto){
+    err.style.display='block';
     document.getElementById('pinInput').value='';
-    document.getElementById('pinInput').focus();
-    // vibra o campo (feedback visual)
-    var inp = document.getElementById('pinInput');
-    inp.style.borderColor='var(--red)';
-    setTimeout(function(){ inp.style.borderColor='var(--border)'; }, 800);
+    document.getElementById('pinInput').style.borderColor='#e74c3c';
+    setTimeout(function(){
+      document.getElementById('pinInput').style.borderColor='#333';
+    },800);
     return;
   }
-  // PIN correto
-  erro.style.display='none';
-  _appDesbloqueado = true;
-  sessionStorage.setItem('cmd_auth','1');
-  esconderTelaPin();
-  // mostra o conteúdo do app
-  document.querySelector('header').style.display='';
-  document.querySelector('.tabs').style.display='';
-  document.querySelector('.tab-content').style.display='';
-  var rodape = document.querySelector('.rodape-saldo');
-  if(rodape) rodape.style.display='';
-  // carrega dados da nuvem
-  syncStatus('⟳ carregando...','var(--muted)');
-  document.getElementById('syncIndicador').style.display='block';
-  await loadCloud();
-  // inicializa o app
-  renderGrid();
-  atualizarBotaoSairGerencia();
-  atualizarFaixaDataSimulada();
-  carregarConfigsImpressao();
-  setTimeout(verificarLembreteBackup, 1200);
-  iniciarPolling();
+  // correto — remove o overlay e inicializa
+  err.style.display='none';
+  _autenticado = true;
+  sessionStorage.setItem('_cmd_ok','1');
+  document.getElementById('pinOverlay').style.display='none';
+  // sync inicial + polling
+  _loadCloud().then(function(){
+    renderGrid();
+    _iniciarPolling();
+  });
 }
 
 function save() {
   try {
     localStorage.setItem('cmd8', JSON.stringify(S));
     ocultarAvisoFalhaSalvamento();
-    saveCloud(); // salva na nuvem em paralelo
+    _saveCloud(); // sync nuvem em paralelo
     return true;
   } catch(e) {
     mostrarAvisoFalhaSalvamento(e);
@@ -7115,6 +7125,33 @@ document.getElementById('logoTamanhoSlider').addEventListener('input',function()
   document.getElementById('logoTamanhoValor').textContent = this.value;
 });
 
+// ── Salvar senhas e intervalo de sync ──
+document.getElementById('btnSalvarAcesso').addEventListener('click',function(){
+  var novoPIN = document.getElementById('cfgPinEntrada').value.trim();
+  var novaSenha = document.getElementById('cfgSenhaGerencia').value.trim();
+  var novoSync = parseInt(document.getElementById('syncIntervalSlider').value)||5;
+
+  if(novoPIN){
+    if(novoPIN.length < 4){ toast('PIN deve ter pelo menos 4 dígitos',true); return; }
+    // atualiza o PIN em memória — persiste no estabelecimento
+    S.estabelecimento.pinEntrada = novoPIN;
+    document.getElementById('cfgPinEntrada').value='';
+    toast('PIN de entrada alterado ✓');
+  }
+  if(novaSenha){
+    S.senhaGerencia = novaSenha;
+    document.getElementById('cfgSenhaGerencia').value='';
+    toast('Senha de gerência alterada ✓');
+  }
+  S.estabelecimento.syncIntervalSeg = novoSync;
+  save();
+  if(!novoPIN && !novaSenha) toast('Intervalo de sync salvo: '+novoSync+'s ✓');
+});
+
+document.getElementById('syncIntervalSlider').addEventListener('input',function(){
+  document.getElementById('syncIntervalValor').textContent=this.value;
+});
+
 document.getElementById('btnSalvarEstabelecimento').addEventListener('click',function(){
   var linhas = [];
   for(var li=1;li<=5;li++){
@@ -7131,8 +7168,9 @@ document.getElementById('btnSalvarEstabelecimento').addEventListener('click',fun
   S.estabelecimento.cupomMargemMm   = parseInt(document.getElementById('cupomMargemSlider').value)||2;
   S.estabelecimento.cupomFontePt    = parseFloat(document.getElementById('cupomFonteSlider').value)||12;
   S.estabelecimento.cupomFonteOSPt  = parseFloat(document.getElementById('cupomFonteOSSlider').value)||14;
+  S.estabelecimento.syncIntervalSeg = parseInt(document.getElementById('syncIntervalSlider').value)||5;
   save();
-  toast('Dados do estabelecimento salvos ✓');
+  toast('Configurações salvas ✓ — o novo intervalo de sync vale na próxima vez que abrir o app');
 });
 
 // ──────────────────────────────────────────────────────
@@ -7291,77 +7329,40 @@ function carregarConfigsImpressao(){
   document.getElementById('cupomFonteValor').textContent=fonte;
   document.getElementById('cupomFonteOSSlider').value=fonteOS;
   document.getElementById('cupomFonteOSValor').textContent=fonteOS;
+  var syncSeg = e.syncIntervalSeg||5;
+  var syncEl = document.getElementById('syncIntervalSlider');
+  var syncValEl = document.getElementById('syncIntervalValor');
+  if(syncEl){ syncEl.value=syncSeg; }
+  if(syncValEl){ syncValEl.textContent=syncSeg; }
   setTimeout(renderPreviewCupom, 80);
 }
+
+document.getElementById('syncIntervalSlider').addEventListener('input',function(){
+  document.getElementById('syncIntervalValor').textContent=this.value;
+});
 
 document.getElementById('btnFecharAvisoFalha').addEventListener('click',function(){
   document.getElementById('avisoFalhaSalvamento').style.display='none';
 });
 
-// ── aplicarMigracoes: mesmas migrações do load() local, aplicadas nos dados da nuvem ──
-function aplicarMigracoes(r){
-  if(!r.mesaIds) r.mesaIds=[];
-  if(!r.mesas) r.mesas={};
-  if(!r.hist) r.hist={};
-  r.mesaIds.forEach(function(i){
-    if(!r.mesas[i]) r.mesas[i]={nome:'',itens:[],pagamentos:[]};
-    if(!r.hist[i])  r.hist[i]={total:0,fech:0,nome:''};
-    if(!r.mesas[i].itens) r.mesas[i].itens=[];
-    if(!r.mesas[i].pagamentos) r.mesas[i].pagamentos=[];
-    r.mesas[i].itens.forEach(function(it,idx){
-      if(it.iid===undefined) it.iid=idx+1;
-      if(it.qtyPaga===undefined) it.qtyPaga=0;
-      if(it.prodId===undefined) it.prodId=null;
-    });
-  });
-  if(!r.produtos) r.produtos=[];
-  if(!r.insumos) r.insumos=[];
-  if(!r.fechamentosLog) r.fechamentosLog=[];
-  if(!r.despesas) r.despesas=[];
-  if(!r.resumosMensais) r.resumosMensais={};
-  if(!r.resumosAnuais) r.resumosAnuais={};
-  if(!r.resumosDiarios) r.resumosDiarios={};
-  if(!r.ordensServicoLog) r.ordensServicoLog=[];
-  if(!r.estabelecimento) r.estabelecimento={nome:'',endereco:'',documento:'',logoDataUrl:null,logoNaOS:true,logoTamanho:70,cupomLarguraMm:58,cupomMargemMm:2,cupomFontePt:12,cupomFonteOSPt:14,cabecalhoLinhas:['','','','','']};
-  if(!r.estabelecimento.cabecalhoLinhas) r.estabelecimento.cabecalhoLinhas=[r.estabelecimento.nome||'',r.estabelecimento.endereco||'',r.estabelecimento.documento||'','',''];
-  if(r.estabelecimento.cupomLarguraMm===undefined) r.estabelecimento.cupomLarguraMm=58;
-  if(r.estabelecimento.cupomMargemMm===undefined) r.estabelecimento.cupomMargemMm=2;
-  if(r.estabelecimento.cupomFontePt===undefined) r.estabelecimento.cupomFontePt=12;
-  if(r.estabelecimento.cupomFonteOSPt===undefined) r.estabelecimento.cupomFonteOSPt=14;
-  if(r.avisoValidadeDiasPadrao===undefined) r.avisoValidadeDiasPadrao=15;
-  if(r.diasParaArquivar===undefined) r.diasParaArquivar=90;
-  if(r.margemPadraoManual===undefined) r.margemPadraoManual=50;
-  return r;
-}
+// INIT
+renderGrid();
+atualizarBotaoSairGerencia();
+atualizarFaixaDataSimulada();
+carregarConfigsImpressao();
+setTimeout(verificarLembreteBackup, 1200);
 
-// ══ INIT ════════════════════════════════════════════════════════════════════
-// Liga os eventos da tela de PIN
-document.getElementById('pinBtnEntrar').addEventListener('click', tentarEntrar);
-document.getElementById('pinInput').addEventListener('keydown', function(e){
-  if(e.key==='Enter') tentarEntrar();
+// Liga o PIN
+document.getElementById('pinInput').addEventListener('keydown',function(e){
+  if(e.key==='Enter') tentarEntrarPIN();
 });
+document.getElementById('pinInput').focus();
 
-// Verifica se já está autenticado nesta sessão (evita pedir PIN toda vez que recarrega)
-if(sessionStorage.getItem('cmd_auth')==='1'){
-  _appDesbloqueado = true;
-  // carrega da nuvem em background sem bloquear o app
-  loadCloud().then(function(){
-    renderGrid();
-    atualizarBotaoSairGerencia();
-    atualizarFaixaDataSimulada();
-    carregarConfigsImpressao();
-    setTimeout(verificarLembreteBackup, 1200);
-    iniciarPolling();
-  });
-} else {
-  // mostra a tela de PIN — o INIT real acontece dentro de tentarEntrar()
-  mostrarTelaPin();
-  // esconde o conteúdo do app até autenticar
-  document.querySelector('header').style.display='none';
-  document.querySelector('.tabs').style.display='none';
-  document.querySelector('.tab-content').style.display='none';
-  var rodape = document.querySelector('.rodape-saldo');
-  if(rodape) rodape.style.display='none';
+// Se já autenticou nessa sessão do browser, remove overlay e sincroniza
+if(sessionStorage.getItem('_cmd_ok')==='1'){
+  _autenticado = true;
+  document.getElementById('pinOverlay').style.display='none';
+  _loadCloud().then(function(){ renderGrid(); _iniciarPolling(); });
 }
 </script>
 </body>
