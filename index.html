@@ -668,6 +668,8 @@
     </div>
 
     <button class="btn-blue" id="btnSalvarAcesso" style="width:100%;margin-top:4px;">Salvar alterações ✓</button>
+    <button class="btn-gray" id="btnTestarSync" style="width:100%;margin-top:8px;">🔍 Testar conexão com JSONBin</button>
+    <div id="syncDiagBox" style="display:none;margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:0.75rem;font-family:monospace;word-break:break-all;line-height:1.6;"></div>
   </div>
 
   <div class="rel-accordion">
@@ -7140,6 +7142,56 @@ document.getElementById('logoTamanhoSlider').addEventListener('input',function()
 });
 
 // ── Salvar senhas e intervalo de sync ──
+document.getElementById('btnTestarSync').addEventListener('click', async function(){
+  var box = document.getElementById('syncDiagBox');
+  box.style.display = 'block';
+  box.style.color = 'var(--text)';
+  box.innerHTML = '⏳ Testando conexão...<br>';
+
+  function log(msg, cor){
+    box.innerHTML += '<span style="color:'+(cor||'var(--text)')+'">'+msg+'</span><br>';
+  }
+
+  log('URL: '+_JURL);
+  log('Key: '+_JKEY.slice(0,12)+'...');
+
+  // Teste 1: leitura (GET)
+  try{
+    log('→ Testando leitura (GET)...');
+    var r = await fetch(_JURL, {
+      headers:{'X-Master-Key':_JKEY,'X-Bin-Meta':'false'}
+    });
+    log('   Status: '+r.status+' '+r.statusText, r.ok?'#2ecc71':'#e74c3c');
+    var txt = await r.text();
+    log('   Resposta: '+txt.slice(0,120), r.ok?'#2ecc71':'#e74c3c');
+  } catch(e){
+    log('   ERRO de rede: '+e.message,'#e74c3c');
+    log('   (pode ser CORS ou sem internet)','#f5a623');
+  }
+
+  // Teste 2: escrita (PUT)
+  try{
+    log('→ Testando escrita (PUT)...');
+    var r2 = await fetch(_JURL, {
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':_JKEY,
+        'X-Bin-Versioning':'false'
+      },
+      body: JSON.stringify({__teste:true, ts:Date.now()})
+    });
+    log('   Status: '+r2.status+' '+r2.statusText, r2.ok?'#2ecc71':'#e74c3c');
+    var txt2 = await r2.text();
+    log('   Resposta: '+txt2.slice(0,120), r2.ok?'#2ecc71':'#e74c3c');
+    if(r2.ok) log('   ✓ ESCRITA FUNCIONOU!','#2ecc71');
+  } catch(e){
+    log('   ERRO de rede: '+e.message,'#e74c3c');
+  }
+
+  log('— Diagnóstico completo —');
+});
+
 document.getElementById('btnSalvarAcesso').addEventListener('click',function(){
   var novoPIN = document.getElementById('cfgPinEntrada').value.trim();
   var novaSenha = document.getElementById('cfgSenhaGerencia').value.trim();
