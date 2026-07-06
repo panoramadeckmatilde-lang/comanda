@@ -1833,17 +1833,25 @@ function _saveCloud(){
 // busca dados da nuvem e aplica se forem mais novos
 async function _loadCloud(){
   try{
-    _badge('⟳ sincronizando...','#aaa');
-    var r = await fetch(_JURL+'/latest', {
-      headers:{'X-Master-Key':_JKEY,'X-Bin-Meta':'false'}
+    _badge('⟳ buscando...','#aaa');
+    var r = await fetch(_JURL, {
+      headers:{
+        'X-Master-Key': _JKEY,
+        'X-Bin-Meta': 'false',
+        'Content-Type': 'application/json'
+      }
     });
-    if(!r.ok) throw new Error(r.status);
+    if(!r.ok){
+      var txt = await r.text().catch(function(){return '';});
+      _badge('⚠️ JSONBin '+r.status,'#e74c3c');
+      setTimeout(function(){ _badge('',''); }, 5000);
+      return;
+    }
     var d = await r.json();
     // dado válido = tem mesaIds e não é o placeholder inicial
-    if(d && d.mesaIds !== undefined && !d.init){
+    if(d && (d.mesaIds !== undefined || d.produtos !== undefined) && !d.init){
       var tsRemoto = d.__ts || 0;
       if(tsRemoto > _tsLocal){
-        // nuvem é mais nova — aplica
         delete d.__ts;
         S = d;
         localStorage.setItem('cmd8', JSON.stringify(S));
@@ -1854,36 +1862,42 @@ async function _loadCloud(){
         _badge('✓ ok','#2ecc71');
       }
     } else {
-      // bin vazio ou com init — sobe o estado local
-      _badge('☁️ enviando...','#f5a623');
-      await fetch(_JURL, {
+      // bin vazio ou só com init — sobe o estado local agora
+      _badge('☁️ enviando dados...','#f5a623');
+      _tsLocal = Date.now();
+      var payload = JSON.parse(JSON.stringify(S));
+      payload.__ts = _tsLocal;
+      var w = await fetch(_JURL, {
         method:'PUT',
-        headers:{'Content-Type':'application/json','X-Master-Key':_JKEY,'X-Bin-Versioning':'false'},
-        body: JSON.stringify(Object.assign({},S,{__ts:Date.now()}))
+        headers:{
+          'Content-Type':'application/json',
+          'X-Master-Key':_JKEY,
+          'X-Bin-Versioning':'false'
+        },
+        body: JSON.stringify(payload)
       });
-      _badge('✓ enviado','#2ecc71');
+      _badge(w.ok ? '✓ enviado' : '⚠️ erro envio '+w.status, w.ok?'#2ecc71':'#e74c3c');
     }
-    setTimeout(function(){ _badge('',''); }, 2500);
-  } catch(e){
-    _badge('📴 offline','#f5a623');
     setTimeout(function(){ _badge('',''); }, 3000);
+  } catch(e){
+    _badge('📴 sem conexão','#f5a623');
+    setTimeout(function(){ _badge('',''); }, 4000);
   }
 }
 
-// polling a cada 15s — só busca se não estamos salvando
+// polling — usa o intervalo configurado, mínimo 1s, máximo 15s
 function _iniciarPolling(){
-  // intervalo configurável — padrão 10s, mínimo 5s, máximo 60s
   var intervaloMs = Math.max(1, Math.min(15, (S.estabelecimento && S.estabelecimento.syncIntervalSeg)||5)) * 1000;
   setInterval(async function(){
     if(!_autenticado || _salvando) return;
     try{
-      var r = await fetch(_JURL+'/latest', {
+      var r = await fetch(_JURL, {
         headers:{'X-Master-Key':_JKEY,'X-Bin-Meta':'false'}
       });
       if(!r.ok) return;
       var d = await r.json();
       var ts = d && d.__ts || 0;
-      if(ts > _tsLocal && d.mesaIds !== undefined){
+      if(ts > _tsLocal && (d.mesaIds !== undefined || d.produtos !== undefined)){
         _tsLocal = ts;
         delete d.__ts;
         S = d;
